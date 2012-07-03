@@ -153,10 +153,11 @@
 
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
     JinzoraMobileAppDelegate *app = (JinzoraMobileAppDelegate *)[[UIApplication sharedApplication] delegate];
-	NSString *before = [app.p getCurrentApiURL];
+	NSString *before = [[NSString alloc] initWithString:[app.p getCurrentApiURL]];
 	[app.p setCurrURLtoServAtIndex:indexPath.row];
 	NSString *after = [app.p getCurrentApiURL];
 	if(![before isEqualToString:after]) [app resetBrowse];
+    [before release];
 	[tableView deselectRowAtIndexPath:indexPath animated:YES];
 	[[self tableView] reloadData];
 }

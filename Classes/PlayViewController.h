@@ -42,7 +42,7 @@
 	UIImageView *forwardButtonView;
 	UIImage *forward;
 	UIImage *forward_pressed;
-	
+    
 	BOOL scrobbled;
 }
 
@@ -67,5 +67,7 @@
 - (IBAction)updateText:(id)sender;
 - (void)destroyStreamer;
 - (void)resetProgress;
+
+- (IBAction)downloadSong:(id)sender;
 
 @end

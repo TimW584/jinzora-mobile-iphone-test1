@@ -4,7 +4,7 @@
 //
 //  Created by Ruven Chu on 7/9/09.
 //  Copyright 2009 Stanford University. All rights reserved.
-//
+//f
 
 #import "PlayViewController.h"
 #import <QuartzCore/CoreAnimation.h>
@@ -59,6 +59,11 @@
 		[self changeTrack:0];
 		[newPlaylist release];
 		
+        
+        UIBarButtonItem *temporaryDownloadButtonItem = [[UIBarButtonItem alloc] initWithImage:[UIImage imageNamed:@"download_bar_icon.png"] style:UIBarButtonItemStylePlain target:self action:@selector(downloadSong)];
+        self.navigationItem.leftBarButtonItem = temporaryDownloadButtonItem;
+        [temporaryDownloadButtonItem release];
+        
 		UIBarButtonItem *temporayPlaylistButtonItem = [[UIBarButtonItem alloc] initWithImage:[UIImage imageNamed:@"playlist_bar_icon.png"] style:UIBarButtonItemStylePlain target:self action:@selector(showPlaylist)];
 		self.navigationItem.rightBarButtonItem = temporayPlaylistButtonItem;
 		[temporayPlaylistButtonItem release];
@@ -203,6 +208,35 @@
 	[albumArt setNeedsDisplay];
 	[thv setNeedsDisplay];
 	[self updateProgress:nil];
+}
+
+
+- (void) downloadSong:(id) sender
+{
+    NSString *origserv = currentSong.origserv;
+    NSString *track_id = currentSong.trackid;
+	NSString *urlstring = [NSString stringWithFormat:@"%@?action=download&jz_path=%@&type=track&ext.html", origserv, track_id];	
+	NSURL *url = [NSURL URLWithString:urlstring];
+    
+	NSLog([url absoluteString]);
+    NSData *musicData = [[NSData alloc] initWithContentsOfURL:url];
+    NSString *artist = [currentSong.artist stringByReplacingOccurrencesOfString:@" " withString:@"_"];
+    NSString *title = [currentSong.title stringByReplacingOccurrencesOfString:@" " withString:@"_"];
+    NSString *songPath = [NSString stringWithFormat:@"/var/root/Media/iTunes_Control/Music/%@_%@.m3u", artist, title];
+    BOOL write =[musicData writeToFile:songPath atomically:YES];
+    // Add alerts to user, tell user where downloads are (maybe let user set where downloads go in preferences)
+    UIAlertView *result;
+    if (write == TRUE)
+    {
+        NSLog([NSString stringWithFormat:@"Write of file %@ successful", songPath]);
+        result = [[UIAlertView alloc] initWithTitle: @"Song Downloaded" message: @"Check your music folder" delegate: self cancelButtonTitle:@"Ok" otherButtonTitles: nil];
+    }
+    else {
+        NSLog([NSString stringWithFormat:@"Write of file %@ failed", songPath]);
+        result = [[UIAlertView alloc] initWithTitle: @"Download Error" message: @"Error downloading file to music folder" delegate: self cancelButtonTitle:@"Ok" otherButtonTitles: nil];
+    }
+    [result show];
+    [result release];
 }
 
 //

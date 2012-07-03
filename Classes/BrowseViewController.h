@@ -48,4 +48,6 @@ typedef enum
 - (void)playMusic:(id)sender;
 - (void)addMusic:(id)sender;
 
+- (void) downloadSong:(UIButton*) button withEvent:(UIEvent *) event;
+
 @end
