@@ -45,13 +45,12 @@
 		NSString *documentsDirectory = [paths objectAtIndex:0];
 		
 		NSString *play_file = [documentsDirectory stringByAppendingPathComponent:@"last_playlist.dat"];
-		
 		NSMutableArray *pinfo = [NSMutableArray arrayWithContentsOfFile:play_file];
 		NSLog([NSString stringWithFormat:@"numsongs:%d", [pinfo count]]);		
 		songs = [[NSMutableArray alloc] init];
 		if(pinfo){
 			for (NSMutableDictionary *dict in pinfo){
-				Song *s = [[Song alloc] initWithURL:[NSURL URLWithString:[dict objectForKey:@"url"]] withArtist:[dict objectForKey:@"artist"] withTitle:[dict objectForKey:@"title"]];
+				Song *s = [[Song alloc] initWithURL:[NSURL URLWithString:[dict objectForKey:@"localPath"]] withArtist:[dict objectForKey:@"artist"] withTitle:[dict objectForKey:@"title"]];
 				[songs addObject:s];
 			}
 			currentIndex = 0;
@@ -155,7 +154,7 @@
 
 -(void) printSongs {
 	for (Song *s in songs){
-		NSLog(@" %@ %@ %d", [s getArtist], [s getTitle], [s getLength]);
+		NSLog(@" %@ %@ %@ %d", [s getArtist], [s getTitle], s.localPath, [s getLength]);
 	}	
 }
 
@@ -166,6 +165,7 @@
 }
 
 - (void) writeOutToFile {
+    [self printSongs];
 	NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
 	NSString *documentsDirectory = [paths objectAtIndex:0];
 	NSString *play_file = [documentsDirectory stringByAppendingPathComponent:@"last_playlist.dat"];
@@ -174,7 +174,7 @@
 		NSMutableDictionary *songdict = [NSMutableDictionary dictionary];
 		[songdict setObject:[s getArtist] forKey:@"artist"];
 		[songdict setObject:[s getTitle] forKey:@"title"];
-		[songdict setObject:[s.url absoluteString] forKey:@"url"];
+		[songdict setObject:[s getLocalPath] forKey:@"localPath"];
 		[towrite addObject:songdict];
 	}
 	[towrite writeToFile:play_file atomically:YES];

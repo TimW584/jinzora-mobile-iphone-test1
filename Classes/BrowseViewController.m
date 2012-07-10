@@ -407,7 +407,7 @@ heightForRowAtIndexPath:(NSIndexPath *)indexPath {
 	[myPlayViewController addURLToPlaylist:playlink];
 }
 
-- (void) downloadSong:(UIButton*) button withEvent:(UIEvent *) event
+- (void) downloadPlaylist:(UIButton*) button withEvent:(UIEvent *) event
 {
     NSIndexPath * indexPath = [self.tableView indexPathForRowAtPoint: [[[event touchesForView: button] anyObject] locationInView: self.tableView]];
     if ( indexPath == nil )

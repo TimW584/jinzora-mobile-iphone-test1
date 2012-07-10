@@ -68,6 +68,4 @@
 - (void)destroyStreamer;
 - (void)resetProgress;
 
-- (IBAction)downloadSong:(id)sender;
-
 @end

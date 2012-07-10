@@ -10,7 +10,7 @@
 
 @implementation JinzoraMobileAppDelegate
 
-@synthesize window, tabBarController, bvc, pvc, prvc, fvc, p;
+@synthesize window, tabBarController, bvc, pvc, dvc, fvc, p;
 
 
 - (void)applicationDidFinishLaunching:(UIApplication *)application {  
@@ -30,10 +30,15 @@
 	playNavController.navigationBar.tintColor = [UIColor blackColor]; 
 	[pvc release];
 	
-	prvc = [[RepSettingsViewController alloc] init];
-	UINavigationController *prefNavController = [[[UINavigationController alloc] initWithRootViewController:prvc] autorelease];   
-	prefNavController.navigationBar.tintColor = [UIColor blackColor]; 
-	[prvc release];
+	//prvc = [[RepSettingsViewController alloc] init];
+	//UINavigationController *prefNavController = [[[UINavigationController alloc] initWithRootViewController:prvc] autorelease];   
+	//prefNavController.navigationBar.tintColor = [UIColor blackColor]; 
+	//[prvc release];
+    
+    dvc = [[DownloadViewController alloc] init];
+	UINavigationController *dlNavController = [[[UINavigationController alloc] initWithRootViewController:dvc] autorelease];   
+	dlNavController.navigationBar.tintColor = [UIColor blackColor]; 
+	[dvc release];
 	
 	svc = [[ServersViewController alloc] init];
 	UINavigationController *serversNavController = [[[UINavigationController alloc] initWithRootViewController:svc] autorelease];
@@ -45,7 +50,7 @@
 	followersNavController.navigationBar.tintColor = [UIColor blackColor];
 	[fvc release];
 	
-	tabBarController.viewControllers = [NSArray arrayWithObjects:browseNavController,playNavController,serversNavController,followersNavController, prefNavController, nil];
+	tabBarController.viewControllers = [NSArray arrayWithObjects:browseNavController,playNavController,serversNavController,followersNavController, dlNavController, nil];
 	
 	[window addSubview:tabBarController.view];
 	[window makeKeyAndVisible];
