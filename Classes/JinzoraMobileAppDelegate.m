@@ -17,7 +17,6 @@
 	
 	
 	tabBarController = [[UITabBarController alloc] init];
-	
 	p = [[Preferences alloc] init];
 	
 	bvc = [[BrowseViewController alloc] initWithStyle:UITableViewStylePlain];
@@ -72,7 +71,7 @@
 {
 	PlayViewController *myPlayViewController = [[[tabBarController.viewControllers objectAtIndex:1] viewControllers] objectAtIndex:0];
 	[p writeOutToFile];
-	[myPlayViewController.currentPlaylist writeOutToFile];
+	//[myPlayViewController.currentPlaylist writeOutToFile];
 }
 
 

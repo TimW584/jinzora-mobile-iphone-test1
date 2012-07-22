@@ -22,7 +22,6 @@
     NSString *localPath;
 }
 
--(id)initLocal:(Song*)currentSong;
 -(id)initWithURL:(NSURL*)trackurl withArtist:(NSString*) art withTitle:(NSString*) tit;
 -(NSString *) getAlbumArt;
 -(NSString *) getAlbum;

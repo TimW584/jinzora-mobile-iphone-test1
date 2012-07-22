@@ -407,34 +407,6 @@ heightForRowAtIndexPath:(NSIndexPath *)indexPath {
 	[myPlayViewController addURLToPlaylist:playlink];
 }
 
-- (void) downloadPlaylist:(UIButton*) button withEvent:(UIEvent *) event
-{
-    NSIndexPath * indexPath = [self.tableView indexPathForRowAtPoint: [[[event touchesForView: button] anyObject] locationInView: self.tableView]];
-    if ( indexPath == nil )
-        return;
-	NSDictionary *song= [[menuList objectAtIndex:indexPath.section] objectAtIndex:indexPath.row];
-    NSString *song_name = [song objectForKey:@"name"];
-    JinzoraMobileAppDelegate *app = (JinzoraMobileAppDelegate *)[[UIApplication sharedApplication] delegate];
-    NSString *origserv = @"tmp";
-    NSString *song_id = @"tmp";
-	NSString *urlstring = [NSString stringWithFormat:@"%@?action=download&jz_path=%@&type=track&ext.html", origserv, song_id];	
-	NSURL *url = [NSURL URLWithString:urlstring];
-    id value1 = [[song objectForKey:@"metadata"] objectForKey:@"number"];
-    
-	NSLog([url absoluteString]);
-    NSData *musicData = [[NSData alloc] initWithContentsOfURL:url];
-    NSString *songPath = [NSString stringWithFormat:@"/var/root/Media/iTunes_Control/Music/%@.m3u", song_name];
-    BOOL write =[musicData writeToFile:songPath atomically:YES];
-    // Add alerts to user, tell user where downloads are (maybe let user set where downloads go in preferences)
-    if (write == TRUE)
-    {
-        NSLog([NSString stringWithFormat:@"Write of file %@ successful", songPath]);
-    }
-    else {
-        NSLog([NSString stringWithFormat:@"Write of file %@ failed", songPath]);
-    }
-}
-
 
 #pragma mark Json Loading
 

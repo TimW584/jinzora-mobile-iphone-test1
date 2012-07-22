@@ -49,8 +49,13 @@
 		NSLog([NSString stringWithFormat:@"numsongs:%d", [pinfo count]]);		
 		songs = [[NSMutableArray alloc] init];
 		if(pinfo){
+            NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
 			for (NSMutableDictionary *dict in pinfo){
-				Song *s = [[Song alloc] initWithURL:[NSURL URLWithString:[dict objectForKey:@"localPath"]] withArtist:[dict objectForKey:@"artist"] withTitle:[dict objectForKey:@"title"]];
+				Song *s = [[Song alloc] initWithURL:[NSURL URLWithString:@""] withArtist:[dict objectForKey:@"artist"] withTitle:[dict objectForKey:@"title"]];
+                NSString *fileName =
+                [(NSString *)CFURLCreateStringByAddingPercentEscapes(nil, (CFStringRef)[NSString stringWithFormat:@"%@_%@.mp3", s.artist, s.title], NULL, NULL, kCFStringEncodingUTF8) autorelease];
+                s.info = [dict objectForKey:@"info"];
+                s.localPath = [[paths objectAtIndex:0] stringByAppendingPathComponent:fileName];
 				[songs addObject:s];
 			}
 			currentIndex = 0;
@@ -154,7 +159,7 @@
 
 -(void) printSongs {
 	for (Song *s in songs){
-		NSLog(@" %@ %@ %@ %d", [s getArtist], [s getTitle], s.localPath, [s getLength]);
+		NSLog(@" %@ %@ %@ %d", [s getArtist], [s getTitle], [s.url absoluteString], [s getLength]);
 	}	
 }
 
@@ -174,7 +179,7 @@
 		NSMutableDictionary *songdict = [NSMutableDictionary dictionary];
 		[songdict setObject:[s getArtist] forKey:@"artist"];
 		[songdict setObject:[s getTitle] forKey:@"title"];
-		[songdict setObject:[s getLocalPath] forKey:@"localPath"];
+        [songdict setObject:s.info forKey:@"info"];
 		[towrite addObject:songdict];
 	}
 	[towrite writeToFile:play_file atomically:YES];

@@ -8,8 +8,6 @@
 
 #import "DownloadViewController.h"
 #import "JinzoraMobileAppDelegate.h"
-#import <AVFoundation/AVAudioPlayer.h>
-#import <AudioToolbox/AudioToolbox.h>
 
 @interface DownloadViewController ()
 
@@ -112,8 +110,28 @@
     
     if (editingStyle == UITableViewCellEditingStyleDelete) {
         // Delete the row from the data source
+        PlayViewController *pvc = [[[self.navigationController.tabBarController.viewControllers objectAtIndex:1] viewControllers] objectAtIndex:0];
+        if ((pvc.currentPlaylist.currentIndex == indexPath.row) && pvc.localPlayer)
+        {
+            UIAlertView *result = [[UIAlertView alloc] initWithTitle: @"Song Not Deleted" message: @"Song is currently playing" delegate: self cancelButtonTitle:@"Ok" otherButtonTitles: nil];
+            [result show];
+            [result release];
+            return;
+        }
+        NSString* localPath = [downloadPlaylist getSongAtIndex:indexPath.row].localPath;
 		[downloadPlaylist removeSongAtIndex:indexPath.row];
         [downloadPlaylist writeOutToFile];
+        NSFileManager *fileManager = [NSFileManager defaultManager];
+        NSError *error;
+        BOOL fileExists = [fileManager fileExistsAtPath:localPath];
+        NSLog(@"Path to file: %@", localPath);        
+        NSLog(@"File exists: %d", fileExists);
+        NSLog(@"Is deletable file at path: %d", [fileManager isDeletableFileAtPath:localPath]);
+        if (fileExists) 
+        {
+            BOOL success = [fileManager removeItemAtPath:localPath error:&error];
+            if (!success) NSLog(@"Error: %@", [error localizedDescription]);
+        }
         [tableView deleteRowsAtIndexPaths:[NSArray arrayWithObject:indexPath] withRowAnimation:UITableViewRowAnimationFade];
     }   
     else if (editingStyle == UITableViewCellEditingStyleInsert) {
@@ -156,16 +174,13 @@
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath
 {
     NSLog(@"SELECTED");
+    Song *localSong = [downloadPlaylist getSongAtIndex:indexPath.row];
     [downloadPlaylist printSongs];
-    NSLog([downloadPlaylist getSongAtIndex:indexPath.row].localPath);
-    //AVAudioPlayer *audioPlayer = [[AVAudioPlayer alloc] initWithContentsOfURL:[downloadPlaylist getSongAtIndex:indexPath.row].url error:NULL];
-    //[audioPlayer play];
-    /*
-    NSString *playlink = [downloadPlaylist getSongAtIndex:indexPath.section].localPath;
+    NSLog(localSong.localPath);
     PlayViewController *pvc = [[[self.navigationController.tabBarController.viewControllers objectAtIndex:1] viewControllers] objectAtIndex:0];
-    [pvc replacePlaylistWithURL:playlink];
+    [pvc replacePlaylistWithPlaylistandTrack:downloadPlaylist :indexPath.row];
     self.navigationController.tabBarController.selectedViewController = [self.navigationController.tabBarController.viewControllers objectAtIndex:1];
-     */
+    [tableView deselectRowAtIndexPath:indexPath animated:YES];
 }
 
 - (void)dealloc {

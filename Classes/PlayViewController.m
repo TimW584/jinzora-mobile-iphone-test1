@@ -13,6 +13,7 @@
 #import "PlaylistViewController.h"
 #import "Utilities.h"
 #import "JinzoraMobileAppDelegate.h"
+#import "Reachability.h"
 
 @interface PlayViewController (Internal)
 - (void) resetProgress;
@@ -21,7 +22,7 @@
 
 @implementation PlayViewController
 
-@synthesize currentPlaylist, playing, streamer;
+@synthesize currentPlaylist, playing, streamer, localPlayer;
 
  // The designated initializer.  Override if you create the controller programmatically and want to perform customization that is not appropriate for viewDidLoad.
 - (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil {
@@ -43,7 +44,7 @@
 		forwardButtonView = [[UIImageView alloc] initWithFrame:CGRectMake(0.0f, 0.0f, buttonsize, buttonsize)]; 
 		forwardButtonView.image = forward;
 		playing = NO;
-		
+
 		self.title = @"Now Playing";
 		UIImage *img = [UIImage imageNamed:@"playview.png"];
 		UITabBarItem *tab = [[UITabBarItem alloc] initWithTitle:@"Now Playing" image:img tag:1];
@@ -165,6 +166,15 @@
 // Removes the streamer, the UI update timer and the change notification
 //
 - (void)destroyStreamer{
+    if (localPlayer)
+    {
+		[progressUpdateTimer invalidate];
+		progressUpdateTimer = nil;
+        [localPlayer stop];
+        [localPlayer release];
+        localPlayer = nil;
+        return;
+    }
 	if (streamer)
 	{
 		[[NSNotificationCenter defaultCenter]
@@ -190,6 +200,7 @@
     currentSong.origserv = [currentPlaylist getCurrentSong].origserv;
     currentSong.trackid = [currentPlaylist getCurrentSong].trackid;
     currentSong.downloadurl = [currentPlaylist getCurrentSong].downloadurl;
+    currentSong.localPath = [currentPlaylist getCurrentSong].localPath;
 	currentSong.info = NULL;
 	if([currentPlaylist getCurrentSong].alreadyLoaded){
 		if([currentPlaylist getCurrentSong].info) currentSong.info = [currentPlaylist getCurrentSong].info;
@@ -216,36 +227,60 @@
 
 - (IBAction) downloadSong
 {
+    Reachability *reachability = [Reachability reachabilityForInternetConnection];
+    [reachability startNotifier];
+    
+    NetworkStatus status = [reachability currentReachabilityStatus];
+    
+    if (status != ReachableViaWiFi) 
+    {
+        UIAlertView *error = [[UIAlertView alloc] initWithTitle: @"No Wifi Connection" message: @"Jinzora does not support 3G" delegate: self cancelButtonTitle:@"Ok" otherButtonTitles: nil];
+        [error show];
+        [error release];
+        return;
+    }
     NSLog(@"downloading song");
     NSLog([currentSong.downloadurl absoluteString]);
     UIAlertView *result;
+    Playlist* downloadPlaylist = [[Playlist alloc] initFromStandardFile];
+    // Check for song in playlist
+    for (NSUInteger i = 0; i < [downloadPlaylist songCount]; i++)
+    {
+        Song *playlistSong = [downloadPlaylist getSongAtIndex:i];
+        if (([currentSong.artist isEqualToString:playlistSong.artist] && [currentSong.title isEqualToString:playlistSong.artist]) || [currentSong localPath])
+        {
+            result = [[UIAlertView alloc] initWithTitle: @"Song Not Downloaded" message: @"Song is already in downloads playlist" delegate: self cancelButtonTitle:@"Ok" otherButtonTitles: nil];
+            [result show];
+            [result release];
+            return;
+        }
+    }
+    // Download song
     NSData *musicData = [[NSData alloc] initWithContentsOfURL:currentSong.downloadurl];
-    if (!(musicData))
+    if (!musicData)
     {
         result = [[UIAlertView alloc] initWithTitle: @"Download Error" message: @"Error downloading file" delegate: self cancelButtonTitle:@"Ok" otherButtonTitles: nil];
         [result show];
         [result release];
         return;
     }
+    // Save file
     NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
-    NSString *artist = [currentSong.artist stringByReplacingOccurrencesOfString:@" " withString:@"+"];
-    NSString *title = [currentSong.title stringByReplacingOccurrencesOfString:@" " withString:@"+"];
-    NSString *fileName = [NSString stringWithFormat:@"%@_%@.mp3", artist, title];
+    NSString *fileName =
+	[(NSString *)CFURLCreateStringByAddingPercentEscapes(nil, (CFStringRef)[NSString stringWithFormat:@"%@_%@.mp3", currentSong.artist, currentSong.title], NULL, NULL, kCFStringEncodingUTF8) autorelease];
+	
     NSString *songPath = [[paths objectAtIndex:0] stringByAppendingPathComponent:fileName];
-    currentSong.localPath = songPath;
-    BOOL write =[musicData writeToFile:songPath atomically:NO];
+    BOOL write =[musicData writeToFile:songPath atomically:YES];
     if (write == TRUE)
     {
         NSLog([NSString stringWithFormat:@"Write of file %@ successful", songPath]);
         result = [[UIAlertView alloc] initWithTitle: @"Song Downloaded" message: @"Added to the downloaded songs playlist" delegate: self cancelButtonTitle:@"Ok" otherButtonTitles: nil];
-        Song* localSong = [[Song alloc] initLocal:currentSong];
         NSLog(@"Song initialized!");
-        Playlist* downloadPlaylist = [[Playlist alloc] initFromStandardFile];
         NSLog(@"Playlist read!");
-        [downloadPlaylist addSong:localSong atIndex:[downloadPlaylist songCount]];
+        // Add to playlist
+        [downloadPlaylist addSong:currentSong atIndex:[downloadPlaylist songCount]];
         [downloadPlaylist printSongs];
         [downloadPlaylist writeOutToFile];
-        [localSong release];
         [downloadPlaylist release];
     }
     else {
@@ -263,22 +298,45 @@
 //
 - (void)createStreamer
 {
-	if (streamer) return;
+    if (streamer || localPlayer) return;
 	
 	[self destroyStreamer];
+    
+    if ([currentSong localPath])
+    {
+        NSURL *localUrl = [NSURL fileURLWithPath:currentSong.localPath];
+        NSError *error;
+        localPlayer = [[MyAVAudioPlayer alloc] initWithContentsOfURL:localUrl error:&error];
+        
+        progressUpdateTimer = [NSTimer scheduledTimerWithTimeInterval:0.2 target:self selector:@selector(updateProgress:) userInfo:nil repeats:YES];
+        return;
+    }
 	
+    Reachability *reachability = [Reachability reachabilityForInternetConnection];
+    [reachability startNotifier];
+    
+    NetworkStatus status = [reachability currentReachabilityStatus];
+    
+    if (status != ReachableViaWiFi) 
+    {
+        UIAlertView *error = [[UIAlertView alloc] initWithTitle: @"No Wifi Connection" message: @"Jinzora does not support 3G" delegate: self cancelButtonTitle:@"Ok" otherButtonTitles: nil];
+        [error show];
+        [error release];
+        return;
+    }
+    
 	NSString *escapedValue =
 	[(NSString *)CFURLCreateStringByAddingPercentEscapes(nil, (CFStringRef)[currentSong.url absoluteString], NULL, NULL, kCFStringEncodingUTF8) autorelease];
 	
 	NSURL *url = [NSURL URLWithString:escapedValue];
 	NSLog([url absoluteString]);
 	streamer = [[AudioStreamer alloc] initWithURL:url];
-	
+        
 	progressUpdateTimer = [NSTimer scheduledTimerWithTimeInterval:0.2 target:self selector:@selector(updateProgress:) userInfo:nil repeats:YES];
 	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(playbackStateChanged:) name:ASStatusChangedNotification object:streamer];
 	if([[self.navigationController viewControllers] count] > 1) {
 		[[NSNotificationCenter defaultCenter] addObserver:[self.navigationController topViewController] selector:@selector(playbackStateChanged:) name:ASStatusChangedNotification object:streamer];	
-	}
+    }
 }
 
 
@@ -286,6 +344,15 @@
 	if ([[currentPlaylist songs] count] == 0) {
 		return;
 	}
+    if ([currentSong localPath])
+    {
+        NSURL *url = [NSURL fileURLWithPath:currentSong.localPath];
+        NSError *error;
+        localPlayer = [[MyAVAudioPlayer alloc] initWithContentsOfURL:url error:&error];
+        [localPlayer play];
+        NSLog(@" Playing song locally %@", [currentSong getTitle]);
+        return;
+    }
 	streamer = [[AudioStreamer alloc] initWithURL:currentSong.url];
 	[streamer start];
 }
@@ -309,6 +376,18 @@
 	endLabel.text = [PlayViewController getTimeTextAt:0	outOf:[currentSong getLength] positive:NO];
 	progressView.progress = 0.0;
 	progressSlider.value = 0.0;
+}
+
+-(void)playbackStateChangedLocal
+{
+    if(![currentPlaylist canGoForward]){
+        [self destroyStreamer];
+        [self changeTrack:0];
+        [self resetProgress];
+    } else {
+        [self nextTrack:self];
+    }
+    playing = NO;
 }
 
 - (void)playbackStateChanged:(NSNotification *)aNotification
@@ -360,7 +439,17 @@
 //
 - (void)updateProgress:(NSTimer *)updatedTimer
 {
-	if (streamer.bitRate != 0.0 && [currentSong getLength] != 0)
+    if (localPlayer.player.rate != 0.0 && [currentSong getLength] != 0)
+    {
+        if (progressSlider.enabled == NO) progressSlider.enabled = YES;
+		if(!progressDown && localPlayer.player.playing){
+			double progress = (double)localPlayer.player.currentTime;
+			startLabel.text = [PlayViewController getTimeTextAt:(int)progress outOf:[currentSong getLength] positive:YES];
+			endLabel.text = [PlayViewController getTimeTextAt:(int)progress	outOf:[currentSong getLength] positive:NO];
+			progressSlider.value = progress/[currentSong getLength];
+		}
+    }
+	else if (streamer.bitRate != 0.0 && [currentSong getLength] != 0)
 	{
 		if (progressSlider.enabled == NO) progressSlider.enabled = YES;
 		if(!progressDown  && [streamer isPlaying]){
@@ -395,7 +484,15 @@
 
 - (IBAction)changeProgress:(id)sender{
 	NSLog(@"%d",((int)(progressSlider.value*[currentSong getLength])));
-	[streamer startWithOffsetInSecs:((int)(progressSlider.value*[currentSong getLength]))];
+    if (localPlayer)
+    {
+        NSTimeInterval offset = progressSlider.value*[currentSong getLength];
+        [localPlayer.player setCurrentTime:offset];
+    }
+    else
+    {
+        [streamer startWithOffsetInSecs:((int)(progressSlider.value*[currentSong getLength]))];
+    }
 	progressDown = NO;
 }
 
@@ -435,6 +532,11 @@
 }
 
 - (IBAction) stop {
+    if (localPlayer)
+    {
+        [localPlayer stop];
+        return;
+    }
 	[streamer stop];
 }
 
@@ -444,7 +546,14 @@
 	}
 	[self destroyStreamer];
 	[self createStreamer];
-	[streamer start];
+    if (localPlayer)
+    {
+        [localPlayer play];
+    }
+    else
+    {
+        [streamer start];
+    }
 	NSLog(@" Streaming song %@", [currentSong getTitle]);
 }
 
@@ -466,6 +575,27 @@
 
 - (IBAction)playPressed:(id)sender
 {
+    if ([currentSong localPath])
+    {
+        if (!localPlayer)
+        {
+            [self playSong];
+        }
+        else
+        {
+            if (localPlayer.player.playing)
+            {
+                NSLog(@"pause");
+                [localPlayer pause];
+            }
+            else
+            {
+                NSLog(@"play");
+                [localPlayer play];
+            }
+        }
+        return;
+    }
 	if (!streamer)
 	{
 		[self playSong];
@@ -497,6 +627,17 @@
 	[currentPlaylist addToPlaylist: newPlaylist];
 	NSLog([NSString stringWithFormat:@"%d",[currentPlaylist.songs count]]);
 	[self changeTrack:0];
+	[self playSong];
+	if ([self.navigationController.viewControllers count] > 1) {
+		[self.navigationController popViewControllerAnimated:YES];
+	}
+}
+
+- (void) replacePlaylistWithPlaylistandTrack:(Playlist *) newPlaylist :(NSUInteger) trackNumber{
+	[currentPlaylist clearPlaylist];
+	[currentPlaylist addToPlaylist: newPlaylist];
+	NSLog([NSString stringWithFormat:@"%d",[currentPlaylist.songs count]]);
+	[self changeTrack:trackNumber];
 	[self playSong];
 	if ([self.navigationController.viewControllers count] > 1) {
 		[self.navigationController popViewControllerAnimated:YES];

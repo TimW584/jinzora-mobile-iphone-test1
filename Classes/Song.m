@@ -21,13 +21,6 @@ NSString *const SongLoadedNotification = @"SongLoadedNotification";
 
 @synthesize url, downloadurl, localPath, info, trackid, artist, title, needsNotification, origserv, alreadyLoaded;
 
--(id)initLocal:(Song*)currentSong{
-	self.title = currentSong.title;
-	self.artist = currentSong.artist;
-	self.localPath = currentSong.localPath;
-    return self;
-}
-
 -(id)initWithURL:(NSURL*)trackurl withArtist:(NSString*) art withTitle:(NSString*) tit{
 	if (self = [super init]) {
 		self.url = trackurl;
@@ -92,8 +85,8 @@ NSString *const SongLoadedNotification = @"SongLoadedNotification";
 	alreadyLoaded = YES;
 	[pool release];
     NSString *encodedpath = [self.info objectForKey:@"path"];
-    encodedpath = [encodedpath stringByReplacingOccurrencesOfString:@"/" withString:@"%2F"];
-    encodedpath = [encodedpath stringByReplacingOccurrencesOfString:@" " withString:@"+"];
+    encodedpath =
+	[(NSString *)CFURLCreateStringByAddingPercentEscapes(nil, (CFStringRef)encodedpath, NULL, NULL, kCFStringEncodingUTF8) autorelease];
     NSString *serv = [origserv stringByReplacingOccurrencesOfString:@"api.php" withString:@"index.php"];
     self.downloadurl = [NSURL URLWithString:[NSString stringWithFormat:@"%@&action=download&jz_path=%@&type=track&ext.m3u", serv, encodedpath]];
     NSLog([self.downloadurl absoluteString]);
